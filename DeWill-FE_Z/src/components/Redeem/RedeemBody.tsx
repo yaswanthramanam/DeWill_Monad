@@ -121,7 +121,7 @@ const Redeem: React.FC = () => {
         try {
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.sonic, CONTRACT_ABI, signer);
 
             const requests: Request[] = await contract.getRequests(walletAddress);
             console.log("Fetched requests:", requests);
@@ -223,7 +223,7 @@ const Redeem: React.FC = () => {
             const wallet = await signer.getAddress();
             console.log("Signer:", wallet);
 
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.sonic, CONTRACT_ABI, signer);
 
             let fullBalanceWei = await contract.getBalance(3);
             fullBalanceWei = (BigInt(percentage) * fullBalanceWei) / BigInt(100);
@@ -297,7 +297,7 @@ const Redeem: React.FC = () => {
         try {
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.sonic, CONTRACT_ABI, signer);
             const balance = await contract.getBalance(3);
             return ethers.formatEther(balance);
         } catch (error) {

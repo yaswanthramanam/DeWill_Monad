@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {ethers } from "ethers";
+import { ethers } from "ethers";
 import { IconButton } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import RedeemIcon from '@mui/icons-material/Redeem';
@@ -14,21 +14,27 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import Devil from '../../assets/Devil2.png';
 import CONTRACT_ABI from '../../assets/abi.json';
 
-export const CONTRACT_ADDRESS = {
-    sonic: "0x117808aDc1a8950638F14cE2ca57EeBCA1D2E9A6",
-    ethereum: "",
-    near: "",
-    electroneum: "0xA3e276167014ce83a32eB0FF5715A8e9054753d3"
+export const CONTRACT_ADDRESS: any = {
+    "sonic": "0x5170DC48cb64F0DEe4Bd658Bf942F23E4f72f2Bf",
+    "monad": ""
 };
+
+export const Chain: any = {
+    "57054": "sonic",
+    "10143": "monad"
+}
+
+export const Currency: any = { 
+    "monad": 0,
+    "sonic": 1
+}
 
 export const Country = { India: "India", UnitedStates: "United States", UnitedKingdom: "United Kingdom", Japan: "Japan", Canada: "Canada", Australia: "Australia", China: "China", Russia: "Russia", Switzerland: "Switzerland", EU: "EU" };
 export const Gender = { Male: "Male", Female: "Female", Others: "Others" };
-export const Token = { ETH: "ETH", Sonic: "Sonic", Near: "Near", Electroneum: "Electroneum" };
 
-export interface RecipientDetails { addr: string; firstName: string; lastName: string; primaryEmail: string; secondaryEmail?: string; token: string; country: string; age?: number; gender?: string; percentage: number; }
+export interface RecipientDetails { addr: string; firstName: string; lastName: string; primaryEmail: string; secondaryEmail?: string; country: string; age?: number; gender?: string; percentage: number; }
 export interface RecipientErrors { addr?: string; firstName?: string; lastName?: string; primaryEmail?: string; secondaryEmail?: string; age?: string; percentage?: string; }
-export interface Allocation { recipient: string; percentage: number; }
-export interface Will { text: string; stakingInterest: boolean; allocations: Allocation[]; totalPercentage: number; error: string; recipients: RecipientDetails[]; }
+export interface Will { text: string; stakingInterest: boolean; totalPercentage: number; error: string; recipients: RecipientDetails[]; }
 
 const DeWillBody = () => {
     const [openWill, setWillOpen] = useState(false);
@@ -41,11 +47,11 @@ const DeWillBody = () => {
 
     const [recipientDetails, setRecipientDetails] = useState<RecipientDetails>({
         addr: "", firstName: "", lastName: "", primaryEmail: "", secondaryEmail: "",
-        token: Token.Electroneum, country: Country.India, age: 0, gender: Gender.Male, percentage: 0
+        country: Country.India, age: 0, gender: Gender.Male, percentage: 0
     });
 
     const [willDetails, setWillDetails] = useState<Will>({
-        text: "", stakingInterest: false, allocations: [], totalPercentage: 0, error: "", recipients: []
+        text: "", stakingInterest: false, totalPercentage: 0, error: "", recipients: []
     });
 
     const [errors, setErrors] = useState<RecipientErrors>({});
@@ -53,7 +59,7 @@ const DeWillBody = () => {
     useEffect(() => {
         console.log("entering check will");
         checkExistingWill();
-        updateBalances(); // Fetch balances on mount
+        updateBalances();
     }, []);
 
     const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -79,41 +85,36 @@ const DeWillBody = () => {
 
     const handleSaveRecipient = () => {
         if (validateInputs()) {
-            const currentTotal = willDetails.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
+            const currentTotal = willDetails.recipients.reduce((sum, r) => sum + r.percentage, 0);
             if (currentTotal + recipientDetails.percentage > 100) {
                 setErrors({ ...errors, percentage: "Total allocation exceeds 100%." });
                 return;
             }
-            const updatedWillDetails = {
+            setWillDetails({
                 ...willDetails,
                 recipients: [...willDetails.recipients, { ...recipientDetails }],
-                allocations: [...willDetails.allocations, { recipient: recipientDetails.addr, percentage: recipientDetails.percentage }]
-            };
-            setWillDetails(updatedWillDetails);
-            setRecipientDetails({ addr: "", firstName: "", lastName: "", primaryEmail: "", secondaryEmail: "", token: Token.Electroneum, country: Country.India, age: 0, gender: Gender.Male, percentage: 0 });
+                totalPercentage: currentTotal + recipientDetails.percentage
+            });
+            setRecipientDetails({ addr: "", firstName: "", lastName: "", primaryEmail: "", secondaryEmail: "", country: Country.India, age: 0, gender: Gender.Male, percentage: 0 });
             setRecipientOpen(false);
         }
     };
 
-    const handleAllocationChange = (index: number, field: 'recipient' | 'percentage', value: string | number) => {
-        const updatedAllocations = [...willDetails.allocations];
+    const handlePercentageChange = (index: number, value: string) => {
+        const newPercentage = Number(value);
         const updatedRecipients = [...willDetails.recipients];
-
-        if (field === "percentage") {
-            const newPercentage = Number(value);
-            updatedAllocations[index] = { ...updatedAllocations[index], percentage: newPercentage };
-            updatedRecipients[index] = { ...updatedRecipients[index], percentage: newPercentage };
-        } else {
-            updatedAllocations[index] = { ...updatedAllocations[index], [field]: String(value) };
-        }
-
-        setWillDetails({ ...willDetails, allocations: updatedAllocations, recipients: updatedRecipients });
+        updatedRecipients[index] = { ...updatedRecipients[index], percentage: newPercentage };
+        setWillDetails({
+            ...willDetails,
+            recipients: updatedRecipients,
+            totalPercentage: updatedRecipients.reduce((sum, r) => sum + r.percentage, 0)
+        });
     };
 
     const handleAddRecipientClick = () => setRecipientOpen(true);
 
     const handleSaveWill = () => {
-        const totalPercentage = willDetails.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0);
+        const totalPercentage = willDetails.recipients.reduce((sum, r) => sum + r.percentage, 0);
         if (totalPercentage !== 100) {
             setWillDetails({ ...willDetails, error: "Total allocation percentage must be exactly 100%." });
             return;
@@ -124,8 +125,8 @@ const DeWillBody = () => {
 
     const onCancel = () => {
         setWillOpen(false);
-        setRecipientDetails({ addr: "", firstName: "", lastName: "", primaryEmail: "", secondaryEmail: "", token: Token.Electroneum, country: Country.India, age: 0, gender: Gender.Male, percentage: 0 });
-        setWillDetails({ ...willDetails, recipients: [] });
+        setRecipientDetails({ addr: "", firstName: "", lastName: "", primaryEmail: "", secondaryEmail: "", country: Country.India, age: 0, gender: Gender.Male, percentage: 0 });
+        setWillDetails({ ...willDetails, recipients: [], totalPercentage: 0 });
     };
 
     const checkExistingWill = async () => {
@@ -134,29 +135,28 @@ const DeWillBody = () => {
             const provider = new ethers.BrowserProvider(window.ethereum);
             await provider.send("eth_requestAccounts", []);
             const signer = await provider.getSigner();
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const chainId: bigint = (await provider.getNetwork()).chainId;
+            const chainString: string = chainId.toString();
+            const contract = new ethers.Contract(CONTRACT_ADDRESS[Chain[chainString]], CONTRACT_ABI, signer);
             const recipients = await contract.getRecipients();
-            console.log("Hi..");
-            const will: Will = await contract.getWill();
+            const will = await contract.getWill();
 
-            const formattedWill = JSON.parse(JSON.stringify(will, (_key, value) =>
-                typeof value === "bigint" ? value.toString() : value, 2));
-
-            console.log(formattedWill);
-            console.log(will.totalPercentage);
-            console.log(will.text);
-            console.log("Get Will", await contract.getWill());
             if (recipients && recipients.length > 0) {
                 const formattedRecipients: RecipientDetails[] = recipients.map((r: any) => ({
-                    addr: r.addr, firstName: r.firstName, lastName: r.lastName, primaryEmail: r.primaryEmail, secondaryEmail: r.secondaryEmail || "",
-                    token: ["Sonic", "ETH", "Near", "Electroneum"][r.currency] || "Electroneum",
+                    addr: r.addr,
+                    firstName: r.firstName,
+                    lastName: r.lastName,
+                    primaryEmail: r.primaryEmail,
+                    secondaryEmail: r.secondaryEmail || "",
                     country: ["India", "United States", "United Kingdom", "Japan", "Canada", "Australia", "China", "Russia", "Switzerland", "EU"][r.country] || "India",
-                    age: Number(r.age), gender: ["Male", "Female", "Others"][r.gender] || "Male", percentage: Number(r.percentage)
+                    age: Number(r.age),
+                    gender: ["Male", "Female", "Others"][r.gender] || "Male",
+                    percentage: Number(r.percentage)
                 }));
                 setWillDetails({
                     ...willDetails,
                     recipients: formattedRecipients,
-                    allocations: formattedRecipients.map(r => ({ recipient: r.addr, percentage: r.percentage })),
+                    totalPercentage: formattedRecipients.reduce((sum, r) => sum + r.percentage, 0),
                     stakingInterest: await contract.getStaking(),
                     text: will.text
                 });
@@ -178,29 +178,26 @@ const DeWillBody = () => {
             const signer = await provider.getSigner();
             const wallet = await signer.getAddress();
             console.log("Signer:", wallet);
-
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const chainId: bigint = (await provider.getNetwork()).chainId;
+            console.log("chainId:", chainId);
+            const chainString: string = chainId.toString();
+            console.log("chainString:", chainString);
+            console.log(CONTRACT_ADDRESS[Chain[chainString]]);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS[Chain[chainString]], CONTRACT_ABI, signer);
             const recipientsFormatted = willDetails.recipients.map(r => ({
                 addr: r.addr,
                 firstName: r.firstName,
                 lastName: r.lastName,
                 primaryEmail: r.primaryEmail,
+                currency: Currency[Chain[chainString]],
                 secondaryEmail: r.secondaryEmail || "",
-                currency: { "Sonic": 0, "ETH": 1, "Near": 2, "Electroneum": 3 }[r.token] || 3,
                 country: { "India": 0, "United States": 1, "United Kingdom": 2, "Japan": 3, "Canada": 4, "Australia": 5, "China": 6, "Russia": 7, "Switzerland": 8, "EU": 9 }[r.country] || 0,
                 age: r.age || 0,
                 gender: { "Male": 0, "Female": 1, "Others": 2 }[r.gender || "Male"] || 0,
                 percentage: r.percentage
             }));
 
-            const willFormatted = {
-                text: willDetails.text || "",
-                recipients: recipientsFormatted
-            };
-
-            console.log("Will Formatted:", JSON.stringify(willFormatted));
-            console.log("Recipients Formatted:", JSON.stringify(recipientsFormatted));
-
+            const willFormatted = { text: willDetails.text || "", recipients: recipientsFormatted };
             const tx1 = await contract.addRecipients(willFormatted, { gasLimit: 500000 });
             console.log("Recipients Tx Hash:", tx1.hash);
             await tx1.wait();
@@ -217,11 +214,6 @@ const DeWillBody = () => {
             updateBalances();
         } catch (error) {
             console.error("Contract call failed:", error);
-            if (error instanceof Error && "reason" in error) {
-                console.log(`Transaction failed: ${error.reason}`);
-            } else {
-                console.log("Transaction failed. Check console for details.");
-            }
         }
     };
 
@@ -231,18 +223,19 @@ const DeWillBody = () => {
             return;
         }
         try {
-            setWillDetails({ text: "", stakingInterest: false, allocations: [], totalPercentage: 0, error: "", recipients: [] });
+            setWillDetails({ ...willDetails, text: "", stakingInterest: false, totalPercentage: 0, error: "", recipients: [] });
             setHasWill(false);
             const provider = new ethers.BrowserProvider(window.ethereum);
             await provider.send("eth_requestAccounts", []);
             const signer = await provider.getSigner();
             const wallet = await signer.getAddress();
             console.log("Signer:", wallet);
-
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const chainId: bigint = (await provider.getNetwork()).chainId;
+            const chainString: string = chainId.toString();
+            const contract = new ethers.Contract(CONTRACT_ADDRESS[Chain[chainString]], CONTRACT_ABI, signer);
             await contract.removeRecipients();
             console.log(await contract.getRecipients());
-            updateBalances(); // Update balances after deleting will
+            updateBalances();
         } catch (error) {
             console.error("Delete will failed:", error);
         }
@@ -259,15 +252,14 @@ const DeWillBody = () => {
             const signer = await provider.getSigner();
             const wallet = await signer.getAddress();
             console.log("Signer:", wallet);
-
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const chainId: bigint = (await provider.getNetwork()).chainId;
+            console.log("chainString:", chainId);
+            const chainString: string = chainId.toString();
+            console.log("chainString:", chainString);
+            console.log(CONTRACT_ADDRESS[Chain[chainString]]);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS[Chain[chainString]], CONTRACT_ABI, signer);
             const balance = await provider.getBalance(wallet);
             const balanceInEth = Number(ethers.formatEther(balance));
-
-            let gasPrice: bigint | null = (await provider.getFeeData()).gasPrice;
-            if (gasPrice == null) {
-                gasPrice = BigInt(0);
-            }
             const gasLimit = 300000n;
             const afterGasBalance = balanceInEth - 2;
 
@@ -276,7 +268,7 @@ const DeWillBody = () => {
                 return;
             }
 
-            const tx = await contract.addBalance(3, {
+            const tx = await contract.addBalance({
                 value: ethers.parseEther(afterGasBalance.toFixed(18)),
                 gasLimit: gasLimit,
             });
@@ -285,7 +277,6 @@ const DeWillBody = () => {
             console.log("Transaction confirmed!");
 
             const fiveYearsInSeconds = 5 * 365 * 24 * 60 * 60;
-
             for (const recipient of willDetails.recipients) {
                 const txRequest = await contract.addRequest(
                     recipient.primaryEmail,
@@ -300,7 +291,7 @@ const DeWillBody = () => {
                 console.log(`Request confirmed for ${recipient.addr}!`);
             }
 
-            updateBalances(); // Update balances after adding funds
+            updateBalances();
         } catch (error: any) {
             console.error("Refresh will failed:", error);
             console.log(`Failed to add balance: ${error.message || "Unknown error"}`);
@@ -308,9 +299,7 @@ const DeWillBody = () => {
     }
 
     async function getWalletBalance(): Promise<string> {
-        if (!window.ethereum) {
-            return "-1";
-        }
+        if (!window.ethereum) return "-1";
         try {
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
@@ -323,14 +312,18 @@ const DeWillBody = () => {
     }
 
     async function getContractBalance(): Promise<string> {
-        if (!window.ethereum) {
-            return "-1";
-        }
+        if (!window.ethereum) return "-1";
         try {
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
-            const balance = await contract.getBalance(3);
+            const chainId: bigint = (await provider.getNetwork()).chainId;
+            console.log(chainId);
+            const chainString: string = chainId.toString();
+            console.log(chainString);
+            console.log(Chain[chainString]);
+            console.log(CONTRACT_ADDRESS[Chain[chainString]]);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS[Chain[chainString]], CONTRACT_ABI, signer);
+            const balance = await contract.getBalance(Currency[Chain[chainString]]);
             return ethers.formatEther(balance);
         } catch (error) {
             console.error("Fetch contract balance failed:", error);
@@ -356,11 +349,10 @@ const DeWillBody = () => {
             const signer = await provider.getSigner();
             const wallet = await signer.getAddress();
             console.log("Signer:", wallet);
-
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
-
-
-            const fullBalanceWei = await contract.getBalance(3);
+            const chainId: bigint = (await provider.getNetwork()).chainId;
+            const chainString: string = chainId.toString();
+            const contract = new ethers.Contract(CONTRACT_ADDRESS[Chain[chainString]], CONTRACT_ABI, signer);
+            const fullBalanceWei = await contract.getBalance();
             if (fullBalanceWei <= 0n) {
                 console.log("No funds available to withdraw.");
                 return;
@@ -376,12 +368,7 @@ const DeWillBody = () => {
             }
 
             const amountToWithdraw = fullBalanceWei - gasCost;
-
-            console.log("full Balance: ", fullBalanceWei);
-            console.log("gas cost: ", gasCost);
-            console.log("amountToWithdraw: ", amountToWithdraw);
-
-            const tx = await contract.withdrawBalance(3, BigInt(1790) * amountToWithdraw / BigInt(1800), {
+            const tx = await contract.withdrawBalance(BigInt(1790) * amountToWithdraw / BigInt(1800), {
                 gasLimit: 10000,
             });
             console.log("Withdraw transaction sent:", tx.hash);
@@ -391,7 +378,7 @@ const DeWillBody = () => {
             const newBalance = await getContractBalance();
             setContractBalance(newBalance);
             setWalletBalance(await getWalletBalance());
-            console.log(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)} ETH`);
+            console.log(`Successfully withdrew ${ethers.formatEther(amountToWithdraw)}`);
             await contract.optOut();
             handleDeleteWill();
         } catch (error: any) {
@@ -404,13 +391,12 @@ const DeWillBody = () => {
         <Box sx={{ bgcolor: '#000000', backgroundImage: `url(${Devil})`, backgroundPosition: 'right', backgroundRepeat: 'no-repeat', backgroundSize: 'contain', minHeight: '100vh', width: '100vw', m: 0, p: 0, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', fontFamily: 'Inter, Roboto, sans-serif' }} onMouseMove={handleMouseMove}>
             <CssBaseline />
             <Box sx={{ position: 'absolute', width: '40px', height: '40px', bgcolor: 'rgba(255, 255, 255, 0.05)', borderRadius: '50%', pointerEvents: 'none', transform: 'translate(-50%, -50%)', left: `${mousePosition.x}px`, top: `${mousePosition.y}px`, boxShadow: '0 0 20px 10px rgba(255, 255, 255, 0.15)', zIndex: 1 }} />
-            {/* Balance Display in Top-Left */}
             <Box sx={{ position: 'absolute', top: 16, left: 16, color: 'white', zIndex: 2, paddingTop: "100px" }}>
                 <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                    Wallet Balance: {walletBalance} ETN
+                    Wallet Balance: {walletBalance}
                 </Typography>
                 <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                    Contract Balance: {contractBalance} ETN
+                    Contract Balance: {contractBalance}
                 </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingRight: "250px", gap: 3, zIndex: 2 }}>
@@ -452,7 +438,6 @@ const DeWillBody = () => {
                 )}
             </Box>
 
-            {/* Create Will Dialog */}
             <Dialog open={openWill} onClose={() => setWillOpen(false)} fullWidth maxWidth="md">
                 <DialogTitle sx={{ bgcolor: '#000000', color: 'white', fontWeight: 700, py: 1, textTransform: 'uppercase', fontFamily: 'Inter, Roboto, sans-serif', fontSize: '1.2rem' }}>Create Your Will</DialogTitle>
                 <DialogContent sx={{ bgcolor: '#000000', color: 'white', p: 3 }}>
@@ -475,11 +460,19 @@ const DeWillBody = () => {
                                             <p style={{ margin: '5px 0', color: 'grey.300' }}>Email: {recipient.primaryEmail}</p>
                                         </Box>
                                         <Box sx={{ minWidth: '120px' }}>
-                                            <TextField label="Percentage" type="number" value={willDetails.allocations[index]?.percentage || 0} onChange={(e) => handleAllocationChange(index, 'percentage', e.target.value)} fullWidth InputProps={{ endAdornment: <span style={{ color: 'white' }}>%</span>, sx: { color: 'white', bgcolor: '#2a2a2a', borderRadius: 0 } }} sx={{ label: { color: 'grey.400' } }} />
+                                            <TextField
+                                                label="Percentage"
+                                                type="number"
+                                                value={recipient.percentage}
+                                                onChange={(e) => handlePercentageChange(index, e.target.value)}
+                                                fullWidth
+                                                InputProps={{ endAdornment: <span style={{ color: 'white' }}>%</span>, sx: { color: 'white', bgcolor: '#2a2a2a', borderRadius: 0 } }}
+                                                sx={{ label: { color: 'grey.400' } }}
+                                            />
                                         </Box>
                                     </Box>
                                 ))}
-                                <Box sx={{ textAlign: 'right', fontWeight: 700, color: 'white' }}>Total: {willDetails.allocations.reduce((sum, alloc) => sum + alloc.percentage, 0)}%</Box>
+                                <Box sx={{ textAlign: 'right', fontWeight: 700, color: 'white' }}>Total: {willDetails.totalPercentage}%</Box>
                             </Box>
                         )}
                     </Box>
@@ -491,7 +484,6 @@ const DeWillBody = () => {
                 </DialogActions>
             </Dialog>
 
-            {/* Add Recipient Dialog */}
             <Dialog open={recipientOpen} onClose={() => setRecipientOpen(false)} fullWidth>
                 <DialogTitle sx={{ bgcolor: '#000000', color: 'white', fontWeight: 700, py: 1, textTransform: 'uppercase', fontFamily: 'Inter, Roboto, sans-serif', fontSize: '1.2rem' }}>Add Recipient</DialogTitle>
                 <DialogContent sx={{ bgcolor: '#000000', color: 'white', p: 3 }}>
@@ -504,7 +496,6 @@ const DeWillBody = () => {
                     <TextField fullWidth label="Allocation Percentage" value={recipientDetails.percentage} onChange={(e) => setRecipientDetails({ ...recipientDetails, percentage: e.target.value ? Number(e.target.value) : 0 })} type="number" sx={{ mb: 2, input: { color: 'white' }, label: { color: 'grey.400' } }} InputProps={{ endAdornment: <span style={{ color: 'white' }}>%</span>, sx: { bgcolor: '#1a1a1a', borderRadius: 0 } }} error={!!errors.percentage} helperText={errors.percentage} />
                     <FormControl fullWidth sx={{ mb: 2 }}><InputLabel sx={{ color: 'grey.400' }}>Country</InputLabel><Select value={recipientDetails.country} label="Country" onChange={(e) => setRecipientDetails({ ...recipientDetails, country: e.target.value })} sx={{ color: 'white', bgcolor: '#1a1a1a', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'grey.700' } }}>{Object.values(Country).map((country) => (<MenuItem key={country} value={country} sx={{ color: 'white', bgcolor: '#1a1a1a' }}>{country}</MenuItem>))}</Select></FormControl>
                     <FormControl fullWidth sx={{ mb: 2 }}><InputLabel sx={{ color: 'grey.400' }}>Gender</InputLabel><Select value={recipientDetails.gender} label="Gender" onChange={(e) => setRecipientDetails({ ...recipientDetails, gender: e.target.value })} sx={{ color: 'white', bgcolor: '#1a1a1a', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'grey.700' } }}>{Object.values(Gender).map((gender) => (<MenuItem key={gender} value={gender} sx={{ color: 'white', bgcolor: '#1a1a1a' }}>{gender}</MenuItem>))}</Select></FormControl>
-                    <FormControl fullWidth sx={{ mb: 2 }}><InputLabel sx={{ color: 'grey.400' }}>Token</InputLabel><Select value={recipientDetails.token} label="Token" onChange={(e) => setRecipientDetails({ ...recipientDetails, token: e.target.value })} sx={{ color: 'white', bgcolor: '#1a1a1a', '& .MuiOutlinedInput-notchedOutline': { borderColor: 'grey.700' } }}>{Object.values(Token).map((token) => (<MenuItem key={token} value={token} sx={{ color: 'white', bgcolor: '#1a1a1a' }}>{token}</MenuItem>))}</Select></FormControl>
                 </DialogContent>
                 <DialogActions sx={{ bgcolor: '#000000', py: 2 }}>
                     <Button onClick={() => setRecipientOpen(false)} sx={{ color: 'white', '&:hover': { color: 'grey.300' } }}>Cancel</Button>

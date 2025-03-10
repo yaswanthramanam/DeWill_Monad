@@ -14,14 +14,13 @@ import {
     Grid,
     SelectChangeEvent,
 } from "@mui/material";
-import { CONTRACT_ADDRESS, Will, Token, RecipientDetails } from "../DeWill/DeWillBody";
+import { CONTRACT_ADDRESS, Will, RecipientDetails } from "../DeWill/DeWillBody";
 import CONTRACT_ABI from '../../assets/abi.json';
 import emailjs from '@emailjs/browser';
 
 interface Errors {
     recipient?: string;
     percentage?: string;
-    token?: string;
     email?: string;
     cause?: string;
     timestamp?: string;
@@ -33,8 +32,8 @@ enum Cause {
     OccasionalTransfer = "Occasional Transfer",
 }
 
-const generateAIEmail = (recipient: string, cause: string, percentage: string, token: string, code: string): string => {
-    return `Dear ${recipient},\n\nI hope this message finds you well. I’m pleased to inform you that I’m transferring ${percentage}% of ${token} as a ${cause}. To redeem your funds, please go to http://localhost:5173/redeem and use the following code: ${code}. This transfer is a special gesture, and I hope it brings you joy.\n\nBest regards,\nNed Stark`;
+const generateAIEmail = (recipient: string, cause: string, percentage: string, code: string): string => {
+    return `Dear ${recipient},\n\nI hope this message finds you well. I’m pleased to inform you that I’m transferring ${percentage}% as a ${cause}. To redeem your funds, please go to http://localhost:5173/redeem and use the following code: ${code}. This transfer is a special gesture, and I hope it brings you joy.\n\nBest regards,\nNed Stark`;
 };
 
 const SendBody = () => {
@@ -43,14 +42,12 @@ const SendBody = () => {
     const [willDetails, setWillDetails] = useState<Will>({
         text: "",
         stakingInterest: false,
-        allocations: [],
         totalPercentage: 0,
         error: "",
-        recipients: [],
+        recipients: []
     });
     const [recipient, setRecipient] = useState<string>("");
     const [percentage, setPercentage] = useState<string>("");
-    const [token, setToken] = useState<string>(Token.Electroneum);
     const [email, setEmail] = useState<string>("");
     const [cause, setCause] = useState<string>("");
     const [timestamp, setTimestamp] = useState<string>("");
@@ -66,9 +63,6 @@ const SendBody = () => {
             }
         };
         fetchBalance();
-    }, []);
-
-    useEffect(() => {
         checkExistingWill();
     }, []);
 
@@ -77,14 +71,13 @@ const SendBody = () => {
     };
 
     const handleChange = (
-        field: "recipient" | "percentage" | "token" | "email" | "cause" | "timestamp"
+        field: "recipient" | "percentage" | "email" | "cause" | "timestamp"
     ) => (
         event: SelectChangeEvent<string> | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
         const value = event.target.value;
         if (field === "recipient") setRecipient(value);
         else if (field === "percentage") setPercentage(value);
-        else if (field === "token") setToken(value);
         else if (field === "email") setEmail(value);
         else if (field === "cause") setCause(value);
         else if (field === "timestamp") setTimestamp(value);
@@ -102,13 +95,11 @@ const SendBody = () => {
                 newErrors.percentage = "Percentage must be between 1 and 100";
             }
         }
-        if (!token) newErrors.token = "Token is required";
         if (!cause) newErrors.cause = "Cause of transfer is required";
         if (!timestamp) {
             newErrors.timestamp = "Timestamp is required";
         } else {
             const ts = new Date(timestamp).getTime() / 1000;
-            console.log(ts );
             if (isNaN(ts) || ts < Math.floor(Date.now() / 1000)) {
                 newErrors.timestamp = "Timestamp must be a valid future date";
             }
@@ -128,7 +119,7 @@ const SendBody = () => {
             const balance = await provider.getBalance(signer.address);
             return ethers.formatEther(balance);
         } catch (error) {
-            console.error("Refresh will failed:", error);
+            console.error("Fetch balance failed:", error);
             return "-1";
         }
     }
@@ -139,8 +130,7 @@ const SendBody = () => {
             const provider = new ethers.BrowserProvider(window.ethereum);
             await provider.send("eth_requestAccounts", []);
             const signer = await provider.getSigner();
-
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.sonic, CONTRACT_ABI, signer);
             const recipients = await contract.getRecipients();
             const will: Will = await contract.getWill();
 
@@ -151,7 +141,7 @@ const SendBody = () => {
                     lastName: r.lastName,
                     primaryEmail: r.primaryEmail,
                     secondaryEmail: r.secondaryEmail || "",
-                    token: ["Sonic", "ETH", "Near", "Electroneum"][r.currency] || "Electroneum",
+                    currency: r.currency,
                     country: ["India", "United States", "United Kingdom", "Japan", "Canada", "Australia", "China", "Russia", "Switzerland", "EU"][r.country] || "India",
                     age: Number(r.age),
                     gender: ["Male", "Female", "Others"][r.gender] || "Male",
@@ -160,9 +150,9 @@ const SendBody = () => {
                 setWillDetails({
                     ...willDetails,
                     recipients: formattedRecipients,
-                    allocations: formattedRecipients.map(r => ({ recipient: r.addr, percentage: r.percentage })),
+                    totalPercentage: formattedRecipients.reduce((sum, r) => sum + r.percentage, 0),
                     stakingInterest: await contract.getStaking(),
-                    text: will.text,
+                    text: will.text
                 });
             }
         } catch (error) {
@@ -188,7 +178,7 @@ const SendBody = () => {
             const wallet = await signer.getAddress();
             console.log("Signer:", wallet);
 
-            const contract = new ethers.Contract(CONTRACT_ADDRESS.electroneum, CONTRACT_ABI, signer);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS.sonic, CONTRACT_ABI, signer);
             const selectedRecipient = willDetails.recipients.find(
                 r => `${r.firstName} ${r.lastName}` === recipient
             );
@@ -218,7 +208,7 @@ const SendBody = () => {
 
             const emailBody = email
                 ? `${email}\n\nTo redeem your funds, use this code: ${redemptionCode} at http://localhost:5173/redeem`
-                : generateAIEmail(recipient, cause, percentage, token, redemptionCode);
+                : generateAIEmail(recipient, cause, percentage, redemptionCode);
 
             const emailParams = {
                 to_email: selectedRecipient.primaryEmail,
@@ -232,24 +222,18 @@ const SendBody = () => {
 
             setRecipient("");
             setPercentage("");
-            setToken(Token.Electroneum);
             setEmail("");
             setCause("");
             setTimestamp("");
             setErrors({});
         } catch (error) {
             console.error("Email sending or request addition failed:", error);
-            if (error instanceof Error && "reason" in error) {
-                console.log(`Transaction failed: ${error.reason}`);
-            } else {
-                console.log("Transaction failed. Check console for details.");
-            }
             setErrors({ ...errors, email: "Failed to send email or add request" });
         }
     };
 
     const handleGenerateAIEmail = () => {
-        if (!recipient || !percentage || !token || !cause || !timestamp) {
+        if (!recipient || !percentage || !cause || !timestamp) {
             setErrors({
                 ...errors,
                 email: "Please fill all fields before generating an email",
@@ -260,7 +244,7 @@ const SendBody = () => {
             r => `${r.firstName} ${r.lastName}` === recipient
         );
         const redemptionCode = selectedRecipient ? `RECIPIENT_${selectedRecipient.addr.slice(0, 6)}` : "UNKNOWN_CODE";
-        const aiEmail = generateAIEmail(recipient, cause, percentage, token, redemptionCode);
+        const aiEmail = generateAIEmail(recipient, cause, percentage, redemptionCode);
         setEmail(aiEmail);
         setErrors({ ...errors, email: "" });
     };
@@ -319,7 +303,7 @@ const SendBody = () => {
                             fontFamily: "Roboto, sans-serif",
                         }}
                     >
-                        Balance: {balance} ETH
+                        Balance: {balance}
                     </Typography>
 
                     <Typography
@@ -402,37 +386,6 @@ const SendBody = () => {
                                         error={!!errors.percentage}
                                         helperText={errors.percentage}
                                     />
-                                </Grid>
-
-                                <Grid item xs={12}>
-                                    <FormControl fullWidth error={!!errors.token}>
-                                        <InputLabel sx={{ color: "white" }}>Token</InputLabel>
-                                        <Select
-                                            value={token}
-                                            onChange={handleChange("token")}
-                                            sx={{
-                                                color: "white",
-                                                bgcolor: "rgba(255, 255, 255, 0.1)",
-                                                "& .MuiOutlinedInput-notchedOutline": { borderColor: "white" },
-                                            }}
-                                            label="Token"
-                                        >
-                                            {Object.values(Token).map((token) => (
-                                                <MenuItem
-                                                    key={token}
-                                                    value={token}
-                                                    sx={{ color: "white", bgcolor: "black" }}
-                                                >
-                                                    {token}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                        {errors.token && (
-                                            <Typography color="error" variant="caption">
-                                                {errors.token}
-                                            </Typography>
-                                        )}
-                                    </FormControl>
                                 </Grid>
 
                                 <Grid item xs={12}>
