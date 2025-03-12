@@ -33,6 +33,10 @@ const config: HardhatUserConfig = {
     sonic: {
       url: "https://rpc.blaze.soniclabs.com",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
+    },
+    monad: {
+      url: "https://testnet-rpc.monad.xyz/",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },
 };
