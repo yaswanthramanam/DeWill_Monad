@@ -75,14 +75,14 @@ const SendBody = () => {
     ) => (
         event: SelectChangeEvent<string> | React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
-        const value = event.target.value;
-        if (field === "recipient") setRecipient(value);
-        else if (field === "percentage") setPercentage(value);
-        else if (field === "email") setEmail(value);
-        else if (field === "cause") setCause(value);
-        else if (field === "timestamp") setTimestamp(value);
-        setErrors({ ...errors, [field]: "" });
-    };
+            const value = event.target.value;
+            if (field === "recipient") setRecipient(value);
+            else if (field === "percentage") setPercentage(value);
+            else if (field === "email") setEmail(value);
+            else if (field === "cause") setCause(value);
+            else if (field === "timestamp") setTimestamp(value);
+            setErrors({ ...errors, [field]: "" });
+        };
 
     const validateForm = (): boolean => {
         const newErrors: Errors = {};
@@ -160,6 +160,22 @@ const SendBody = () => {
         }
     };
 
+    const generatedNumbers = new Set();
+
+    function getUniqueRandomInt(min = 1, max = 10000000):number {
+        if (generatedNumbers.size >= (max - min + 1)) {
+            throw new Error("All possible numbers have been generated!");
+        }
+
+        let randomNum=1;
+        do {
+            randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
+        } while (generatedNumbers.has(randomNum));
+
+        generatedNumbers.add(randomNum);
+        return randomNum;
+    }
+
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!validateForm()) {
@@ -189,10 +205,10 @@ const SendBody = () => {
             }
 
             const blockchainTimestamp = Math.floor(new Date(timestamp).getTime() / 1000);
-            const redemptionCode = `RECIPIENT_${selectedRecipient.addr.slice(0, 6)}`;
+            const redemptionCode:number = getUniqueRandomInt();
             const txRequest = await contract.addRequest(
                 selectedRecipient.primaryEmail,
-                redemptionCode,
+                redemptionCode.toString(),
                 Number(percentage),
                 cause,
                 blockchainTimestamp,
@@ -207,8 +223,8 @@ const SendBody = () => {
             const publicKey = 'utY0W0EPIytoPwfRZ';
 
             const emailBody = email
-                ? `${email}\n\nTo redeem your funds, use this code: ${redemptionCode} at http://localhost:5173/redeem`
-                : generateAIEmail(recipient, cause, percentage, redemptionCode);
+                ? `${email}\n\nTo redeem your funds, use this code: ${redemptionCode.toString()} at http://localhost:5173/redeem`
+                : generateAIEmail(recipient, cause, percentage, redemptionCode.toString());
 
             const emailParams = {
                 to_email: selectedRecipient.primaryEmail,
@@ -240,11 +256,11 @@ const SendBody = () => {
             });
             return;
         }
-        const selectedRecipient = willDetails.recipients.find(
-            r => `${r.firstName} ${r.lastName}` === recipient
-        );
-        const redemptionCode = selectedRecipient ? `RECIPIENT_${selectedRecipient.addr.slice(0, 6)}` : "UNKNOWN_CODE";
-        const aiEmail = generateAIEmail(recipient, cause, percentage, redemptionCode);
+        // const _selectedRecipient = willDetails.recipients.find(
+        //     r => `${r.firstName} ${r.lastName}` === recipient
+        // );
+        const redemptionCode:number = getUniqueRandomInt();
+        const aiEmail = generateAIEmail(recipient, cause, percentage, redemptionCode.toString());
         setEmail(aiEmail);
         setErrors({ ...errors, email: "" });
     };

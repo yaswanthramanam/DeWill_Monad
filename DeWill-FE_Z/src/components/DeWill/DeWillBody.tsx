@@ -15,7 +15,7 @@ import Devil from '../../assets/Devil2.png';
 import CONTRACT_ABI from '../../assets/abi.json';
 
 export const CONTRACT_ADDRESS: any = {
-    "sonic": "0x5170DC48cb64F0DEe4Bd658Bf942F23E4f72f2Bf",
+    "sonic": "0x05F80458e11906688DE27B3d505477301FBB1874",
     "monad": ""
 };
 
@@ -259,6 +259,7 @@ const DeWillBody = () => {
             console.log(CONTRACT_ADDRESS[Chain[chainString]]);
             const contract = new ethers.Contract(CONTRACT_ADDRESS[Chain[chainString]], CONTRACT_ABI, signer);
             const balance = await provider.getBalance(wallet);
+            console.log(balance);
             const balanceInEth = Number(ethers.formatEther(balance));
             const gasLimit = 300000n;
             const afterGasBalance = balanceInEth - 2;
@@ -268,10 +269,13 @@ const DeWillBody = () => {
                 return;
             }
 
-            const tx = await contract.addBalance({
+            console.log("Abouyt to add balance..");
+
+            const tx = await contract.addBalance(Currency[Chain[chainString]], {
                 value: ethers.parseEther(afterGasBalance.toFixed(18)),
                 gasLimit: gasLimit,
             });
+            
             console.log("Transaction sent:", tx.hash);
             await tx.wait();
             console.log("Transaction confirmed!");
@@ -350,9 +354,13 @@ const DeWillBody = () => {
             const wallet = await signer.getAddress();
             console.log("Signer:", wallet);
             const chainId: bigint = (await provider.getNetwork()).chainId;
+            console.log(chainId);
             const chainString: string = chainId.toString();
+            console.log(Chain[chainString]);
+            console.log(CONTRACT_ADDRESS[Chain[chainString]]);
             const contract = new ethers.Contract(CONTRACT_ADDRESS[Chain[chainString]], CONTRACT_ABI, signer);
-            const fullBalanceWei = await contract.getBalance();
+            const fullBalanceWei = await contract.getBalance(Currency[Chain[chainString]]);
+            console.log("completed");
             if (fullBalanceWei <= 0n) {
                 console.log("No funds available to withdraw.");
                 return;
@@ -368,7 +376,8 @@ const DeWillBody = () => {
             }
 
             const amountToWithdraw = fullBalanceWei - gasCost;
-            const tx = await contract.withdrawBalance(BigInt(1790) * amountToWithdraw / BigInt(1800), {
+            console.log("withdrawing ... ");
+            const tx = await contract.withdrawBalance(Currency[Chain[chainString]], BigInt(1790) * amountToWithdraw / BigInt(1800), {
                 gasLimit: 10000,
             });
             console.log("Withdraw transaction sent:", tx.hash);
