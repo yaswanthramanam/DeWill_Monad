@@ -1,0 +1,22 @@
+{
+  "name": "dewill",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha || true",
+    "deploy": "hardhat run scripts/deploy.ts --network sonicblaze"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.18"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.2.0",
+    "dewill": "file:",
+    "dotenv": "^16.4.7"
+  }
+}
